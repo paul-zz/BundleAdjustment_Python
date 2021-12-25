@@ -7,7 +7,10 @@ Created on Thu Dec 23 19:07:35 2021
 This script is to read data from BAL dataset
 """
 
+import numpy as np
+import numpy.linalg as li
 from re import split as resplit
+import Transforms
 
 def read_bal(filename):
     
@@ -52,4 +55,40 @@ def read_bal(filename):
             points.append(pt_param)  
             
     return camera_index, point_index, cameras, points, observations
-            
+
+def create_problem(filename):
+    camera_index, point_index, cameras, points, observations = read_bal(filename)
+    cameras = np.array(cameras)
+    points = np.array(points)
+    cameras, points = normalize(cameras, points)
+    return camera_index, point_index, cameras, points, observations
+    
+def camera_to_rod_center(camera):
+    rotation_ref = camera[0:3]
+    inverse_rotation = - rotation_ref
+    center = Transforms.rotatePoint(inverse_rotation, camera[3:6])
+    center *= -1.0
+    return rotation_ref, center
+
+def rod_center_to_camera(rodrigues, center):
+    center = Transforms.rotatePoint(rodrigues, center)
+    camera = np.zeros(6)
+    camera[0:3] = rodrigues
+    camera[3:6] = center
+    return camera
+
+def normalize(cameras, points):
+    num_points = len(points)
+    median = np.median(points, axis=0)
+    submedian = li.norm(points - np.tile(median, (num_points, 1)),1, axis=0)
+    median_absolute_deviation = np.median(submedian)
+    scale = 100.0 / median_absolute_deviation
+    
+    points = scale * (points - np.tile(median, (num_points, 1)))
+    for i in range(len(cameras)):
+        camera = cameras[i]
+        rodrigues, center = camera_to_rod_center(camera)
+        center = scale * (center - median)
+        # print(rod_center_to_camera(rodrigues, center))
+        cameras[i,0:6] = rod_center_to_camera(rodrigues, center)
+    return cameras, points

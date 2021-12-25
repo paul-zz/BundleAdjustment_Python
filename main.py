@@ -15,7 +15,7 @@ from scipy.sparse.linalg import spsolve
 
 bal_filename = "problem-49-7776-pre.txt" # The BAL dataset file
 processors = 4 # Define your processor cores
-camera_index, point_index, cameras, points, observations = BALio.read_bal(bal_filename)
+camera_index, point_index, cameras, points, observations = BALio.create_problem(bal_filename)
 
 # proj0 = observations[0]
 # cam0 = cameras[camera_index[0]]
@@ -34,9 +34,9 @@ num_observations = len(observations)
 epochs = 20
 for epoch in range(epochs):
     cost = 0
-    # J = np.zeros((6*num_cameras+3*num_points, 2*num_observations), dtype=np.float64) # Cannot store dense jacobian like this -> 80GB memory needed
-    J = csr_matrix((np.zeros(1), (np.zeros(1), np.zeros(1))),shape=(2*num_observations, 6*num_cameras+3*num_points))
-    J = lil_matrix(J)
+    J = np.zeros((2*num_observations, 6*num_cameras+3*num_points), dtype=np.float64) # Cannot store dense jacobian like this -> 80GB memory needed
+    # J = csr_matrix((np.zeros(1), (np.zeros(1), np.zeros(1))),shape=(2*num_observations, 6*num_cameras+3*num_points))
+    # J = lil_matrix(J)
     b = np.zeros(6*num_cameras+3*num_points)
     for i in range(num_observations):
         observed = observations[i]
@@ -72,9 +72,9 @@ for epoch in range(epochs):
         cost += li.norm(residual)
         if i%1000 == 0:
             print(f"iter: {i} in iters {num_observations}")
-    break
     H = J.T @ J
-    update = spsolve(H, b)
+    # update = spsolve(H, b)
+    update = li.solve(H, b)
     cam_update = np.reshape(update[0:6*num_cameras], (num_cameras, 6))
     pts_update = np.reshape(update[6*num_cameras:], (num_points, 3))
     cameras[:,0:6] += cam_update
